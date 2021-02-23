@@ -1,5 +1,6 @@
 from cmd import Cmd
 from os import urandom
+from base64 import b64encode, b64decode
 from getpass import getpass
 from hashlib import pbkdf2_hmac
 from pymongo import MongoClient
@@ -35,14 +36,13 @@ class PasswordShell(Cmd):
             return
 
         password = getpass("Password: ")
-        print(arg)
 
         salt = urandom(32)
         key = hash_password(password, salt)
 
         some_user = {
             "username": username,
-            "password": salt + key,
+            "password": str(b64encode(salt + key), 'utf-8'),
         }
         self.db["users"].insert_one(some_user)
 
@@ -54,8 +54,9 @@ class PasswordShell(Cmd):
         if not found_user:
             print('User not found')
             return
-        salt = found_user["password"][:32]
-        key = found_user["password"][32:]
+        stored_password = b64decode(bytes(found_user["password"], 'utf-8'))
+        salt = stored_password[:32]
+        key = stored_password[32:]
         
         password_input = getpass("Password: ")
         check_key = hash_password(password_input, salt)
